@@ -1,42 +1,35 @@
 import matplotlib.pyplot as plt
+import networkx as nx
+from networkx import cartesian_product
 
 
 class Yard:
     """undirected graph to represent the train yard"""
-    def __init__(self):
-        self.connectivity = {}
-
-    def add_edge(self, a, b):
-        """Adds an undirected connection (two-way) between nodes a and b"""
-
-        if a not in self.connectivity:
-            self.connectivity[a] = []
-        self.connectivity[a].append(b)
-
-        if b not in self.connectivity:
-            self.connectivity[b] = []
-        self.connectivity[b].append(a)
-
-    def get_yard(self):
-        return self.connectivity
-
+    def __init__(self, rail_connectivity:list[list[int]],init_state:list[list[str]],goal_state:list[list[str]]):
+        self.rail_connectivity = rail_connectivity
+        self.car_positions = init_state
+        self.goal_state = goal_state
 
 def possible_actions(yard, state):
     return None
 
+def draw_yard(yard:Yard):
+    """creates a chart to display the rail yard"""
+    graph:nx.Graph = nx.Graph()
 
-def draw_yard_matplotlib(yard, positions):
-    """
-    AI Generated - positions: dict mapping nodes -> (x, y) coordinates
-    """
-    for node, neighbors in yard.get_yard().items():
-        x, y = positions[node]
-        plt.scatter(x, y, c="lightblue", s=500)
-        plt.text(x, y, node, ha="center", va="center", weight="bold")
+    for current_rail in yard.rail_connectivity:
+            graph.add_edge(current_rail[0], current_rail[1])
 
-        for neighbor in neighbors:
-            nx, ny = positions[neighbor]
-            plt.plot([x, nx], [y, ny], "k-")  # draw line
+    #car labels were AI generated
+    labels = {}
+    for rail in graph.nodes():
+        cars = []
+        idx = rail - 1
+        if 0 <= idx < len(yard.car_positions):
+            cars = [c for c in yard.car_positions[idx] if c != "empty"]
+        labels[rail] = f"{rail}\n{','.join(cars)}" if cars else str(rail)
 
-    plt.axis("equal")
+    nx.draw_networkx(graph, labels=labels)
+    #plt.axis("off")
     plt.show()
+
