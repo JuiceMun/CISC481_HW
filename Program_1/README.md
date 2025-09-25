@@ -1,3 +1,12 @@
+Entirely AI Generated Code
+-draw_yard 
+-the Yard helper functions
+Partially AI Generated Code
+-I used AI to clean up some of my redundant code, and fix logical issues
+
+
+I used python 3.9 to create this project
+
 Running the program
 1) py ./main.py
 
@@ -22,6 +31,6 @@ YARD-4:
 
 YARD-5:
 1 2 1 3 1 4
-*a cb d
+* a cb d
 *abcd empty empty empty
 
