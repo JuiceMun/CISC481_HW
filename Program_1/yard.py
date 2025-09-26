@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from state import State
 from action import Action
+from collections import deque, defaultdict
+import heapq
 
 class Yard:
     """undirected graph to represent the train yard"""
@@ -77,7 +79,6 @@ class Yard:
         self.current_state.state[y - 1].insert(0, car)
         return True
 
-
 def possible_actions(yard: Yard, state: State) -> list:
     actions = []
 
@@ -98,7 +99,6 @@ def possible_actions(yard: Yard, state: State) -> list:
             actions.append(Action("RIGHT", a, b))
 
     return actions
-
 
 
 def result(action: Action, state: State) -> State:
@@ -125,7 +125,6 @@ def result(action: Action, state: State) -> State:
     s2 = State("")
     s2.state = tracks
     return s2
-
 
 def expected_states(state:State, yard:Yard) -> list:
     """returns a list of possible states"""
@@ -186,8 +185,7 @@ def dls(yard: Yard, current: State, goal: State, depth: int,
     visited.remove(key)  # backtrack
     return False, []
 
-
-
+#https://www.geeksforgeeks.org/dsa/iterative-deepening-searchids-iterative-deepening-depth-first-searchiddfs/
 def iterative_deepening_dfs(yard: Yard, start_state: State, goal_state: State, max_depth: int) -> list[Action]:
     """
     Iterative Deepening DFS. Returns the action list if found, else [].
@@ -198,7 +196,96 @@ def iterative_deepening_dfs(yard: Yard, start_state: State, goal_state: State, m
             return path
     return []
 
+#https://www.geeksforgeeks.org/dsa/a-search-algorithm/
+def _adj(rail_connectivity, n):
+    g = defaultdict(list)
+    for x, y in rail_connectivity:
+        g[x].append(y); g[y].append(x)
+    return g
 
+def _bfs_dists(adj, start, n):
+    dist = {i: 10**9 for i in range(1, n+1)}
+    dist[start] = 0
+    q = deque([start])
+    while q:
+        u = q.popleft()
+        for v in adj[u]:
+            if dist[v] == 10**9:
+                dist[v] = dist[u] + 1
+                q.append(v)
+    return dist
+
+def _all_pairs_dists(rail_connectivity, n):
+    adj = _adj(rail_connectivity, n)
+    return {s: _bfs_dists(adj, s, n) for s in range(1, n+1)}
+
+def _goal_track_map(goal_state: State):
+    mp = {}
+    for t_idx, cars in enumerate(goal_state.state, start=1):
+        for c in cars:
+            if c != "*":
+                mp[c] = t_idx
+    return mp
+
+def heuristic(state: State, goal_map: dict, dists: dict) -> int:
+    h = 0
+    for t_idx, cars in enumerate(state.state, start=1):
+        for c in cars:
+            if c == "*": continue
+            gtrack = goal_map.get(c)
+            if gtrack is not None:
+                h += dists[t_idx][gtrack]
+    return h
+# Admissible because each move can shift at most one car across one edge,
+# so dist(current_track, goal_track) is a lower bound per car. Summation keeps a lower bound.
+# Consistent because any single move changes that sum by at most 1.
+
+# ----- A* search (optimal with this consistent heuristic) -----
+def _key(s: State):
+    return tuple(tuple(track) for track in s.state)
+
+def astar(yard: Yard) -> list:
+    start, goal = yard.initial_state, yard.goal_state
+    n = len(start.state)
+    dtab = _all_pairs_dists(yard.rail_connectivity, n)
+    gmap = _goal_track_map(goal)
+    start_k = _key(start); goal_k = _key(goal)
+
+    pq = []
+    gcost = {start_k: 0}
+    h0 = heuristic(start, gmap, dtab)
+    heapq.heappush(pq, (h0, 0, 0, start, None, None))  # (f,g,tie,state,action,parent_key)
+    parent = {}
+    seen = set()
+    tie = 1
+
+    while pq:
+        f, g, _, s, act, par = heapq.heappop(pq)
+        k = _key(s)
+        if k in seen: continue
+        seen.add(k)
+        if par is not None:
+            parent[k] = (par, act)
+        if k == goal_k:
+            plan = []
+            cur = k
+            while cur in parent:
+                pk, a = parent[cur]
+                plan.append(a)
+                cur = pk
+            plan.reverse()
+            return plan
+
+        for a in possible_actions(yard, s):
+            s2 = result(a, s)
+            k2 = _key(s2)
+            g2 = g + 1
+            if k2 in gcost and g2 >= gcost[k2]:
+                continue
+            gcost[k2] = g2
+            h2 = heuristic(s2, gmap, dtab)
+            heapq.heappush(pq, (g2 + h2, g2, tie, s2, a, k)); tie += 1
+    return []
 
 
 def draw_yard(yard: Yard):

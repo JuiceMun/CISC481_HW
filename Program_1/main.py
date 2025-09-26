@@ -120,7 +120,7 @@ def main():
     #PROBLEM 3 [10 pts] - expected_states
 
     #Problem 4 [30 pts] - iterative_deepening_dfs
-    for idx, ty in enumerate(train_yards, start=1):
+    """for idx, ty in enumerate(train_yards, start=1):
         if idx == 1:  # skip yard 1
             continue
 
@@ -133,6 +133,26 @@ def main():
             sim_state = result(action, sim_state)
 
         temp_yard:Yard = Yard(ty.rail_connectivity, ty.initial_state, ty.goal_state)
+        temp_yard.current_state = sim_state
+
+        draw_yard(temp_yard)"""
+
+    #Problem 6 [30 pts] -
+    for idx, ty in enumerate(train_yards, start=1):
+
+
+        plan = astar(ty)  # <- A* returns a list of Action
+        if not plan:
+            print(f"Yard {idx}: no solution found by A*")
+            continue
+
+        # simulate final state without mutating the yard
+        sim_state = ty.initial_state
+        for act in plan:
+            sim_state = result(act, sim_state)
+
+        # temporary yard just for drawing
+        temp_yard = Yard(ty.rail_connectivity, ty.initial_state, ty.goal_state)
         temp_yard.current_state = sim_state
 
         draw_yard(temp_yard)
