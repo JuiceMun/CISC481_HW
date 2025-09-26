@@ -1,9 +1,12 @@
 I used python 3.9 to create this project
 
 Running the program
-1) py ./main.py
+1) pip install matplotlib networkx
+    uncommented line 21 in main.py to view debugging charts
 
-2) example inputs from Project 1 writeup (ctrl + c, ctrl + v ready)
+2) py ./main.py
+
+3) example inputs from Project 1 writeup (ctrl + c, ctrl + v ready)
 YARD-1:
 1 2 1 3 3 5 4 5 2 6 5 6
 * e empty bca empty d

@@ -18,6 +18,7 @@ def run_problem1(yards: list):
         print(f"Yard {idx}")
         print(f"INIT-STATE-{idx} {possible_actions_to_str(ty, ty.initial_state)}")
         print(f"GOAL-STATE-{idx} {possible_actions_to_str(ty, ty.goal_state)}\n")
+        #draw_yard(ty)
 
 def run_problem6(yards: list, iddfs_max_depth: int = 15):
     print("=== Timing & Speedup (IDDFS vs A*) ===")
@@ -47,6 +48,7 @@ def run_problem6(yards: list, iddfs_max_depth: int = 15):
               f"IDDFS {t_iddfs:.4f}s, exp={e_iddfs}, actions={n_iddfs} | "
               f"A* {t_astar:.4f}s, exp={e_astar}, actions={n_astar} | "
               f"Speedup time {time_speedup:.2f}x, nodes {exp_speedup:.2f}x")
+
 
 def main():
     # Ask user if they want manual inputs
