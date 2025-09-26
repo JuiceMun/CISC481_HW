@@ -80,21 +80,25 @@ class Yard:
 
 def possible_actions(yard: Yard, state: State) -> list:
     actions = []
+
     def engine_on(t: int) -> bool:
         return "*" in state.state[t - 1]
 
-    for a, b in yard.rail_connectivity:   # assume a < b
+    for a, b in yard.rail_connectivity:   # assume a < b (ascending pairs)
+        # engine must be on one of the rails to push/pull
         if not (engine_on(a) or engine_on(b)):
             continue
 
         # LEFT b->a (source = b)
-        if state.state[b - 1] and state.state[b - 1][0] != "*":
+        if state.state[b - 1]:
             actions.append(Action("LEFT", b, a))
 
         # RIGHT a->b (source = a)
-        if state.state[a - 1] and state.state[a - 1][-1] != "*":
+        if state.state[a - 1]:
             actions.append(Action("RIGHT", a, b))
+
     return actions
+
 
 
 def result(action: Action, state: State) -> State:
@@ -134,13 +138,39 @@ def expected_states(state:State, yard:Yard) -> list:
 
     return successors
 
-def dls(yard: Yard, current: State, goal: State, depth: int, path: list, last: Action=None):
+def _state_key(s: State):
+    # hashable snapshot for visited-on-path check
+    return tuple(tuple(track) for track in s.state)
+
+def dls(yard: Yard, current: State, goal: State, depth: int,
+        path: list, last: Action=None, visited=None):
+    if visited is None:
+        visited = set()
+
     if current.state == goal.state:
         return True, path
     if depth == 0:
         return False, []
 
-    for act in possible_actions(yard, current):
+    key = _state_key(current)
+    if key in visited:
+        return False, []
+    visited.add(key)
+
+    # Generate actions and prefer non-engine moves first (helps runtime)
+    acts = possible_actions(yard, current)
+    non_engine, engine = [], []
+    for act in acts:
+        src = act.a - 1
+        src_list = current.state[src]
+        if act.direction == "LEFT":
+            moves_engine = (src_list and src_list[0] == "*")
+        else:  # RIGHT
+            moves_engine = (src_list and src_list[-1] == "*")
+        (engine if moves_engine else non_engine).append(act)
+    ordered = non_engine + engine
+
+    for act in ordered:
         # skip immediate inverse (undo)
         if last and (
             (last.direction == "LEFT"  and act.direction == "RIGHT" and last.a == act.b and last.b == act.a) or
@@ -149,10 +179,13 @@ def dls(yard: Yard, current: State, goal: State, depth: int, path: list, last: A
             continue
 
         ns = result(act, current)
-        found, fpath = dls(yard, ns, goal, depth - 1, path + [act], act)
+        found, fpath = dls(yard, ns, goal, depth - 1, path + [act], act, visited)
         if found:
             return True, fpath
+
+    visited.remove(key)  # backtrack
     return False, []
+
 
 
 def iterative_deepening_dfs(yard: Yard, start_state: State, goal_state: State, max_depth: int) -> list[Action]:

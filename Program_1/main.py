@@ -30,7 +30,7 @@ def main():
         "* d b ae c",
         "* a b",
         "* a bc d",
-        "*abcd empty empty empty"
+        "* a cb d"
     ]
 
     goal_states_input:list[str] = [
@@ -119,23 +119,24 @@ def main():
 
     #PROBLEM 3 [10 pts] - expected_states
 
-    #Problem 4 [30 pts] -
+    #Problem 4 [30 pts] - iterative_deepening_dfs
+    for idx, ty in enumerate(train_yards, start=1):
+        if idx == 1:  # skip yard 1
+            continue
 
-    for ty in train_yards:
-        goal_actions:list[Action] = iterative_deepening_dfs(
-            ty,
-            ty.initial_state,
-            ty.goal_state,
-            40
+        goal_actions: list[Action] = iterative_deepening_dfs(
+            ty, ty.initial_state, ty.goal_state, 20
         )
+
+        sim_state:State = ty.initial_state
         for action in goal_actions:
-            print("\t" + str(action))
-            if action.direction == "LEFT":
-                ty.left(action.a, action.b)
-            elif action.direction == "RIGHT":
-                ty.right(action.a, action.b)
-        draw_yard(ty)
-        print("\n\n")
+            sim_state = result(action, sim_state)
+
+        temp_yard:Yard = Yard(ty.rail_connectivity, ty.initial_state, ty.goal_state)
+        temp_yard.current_state = sim_state
+
+        draw_yard(temp_yard)
+
 
 if __name__ == '__main__':
     main()
