@@ -1,162 +1,108 @@
+import time
 from yard import *
-#https://udel.instructure.com/courses/1873574/assignments/13722856
 
-#1-n: rail sections
-#car: lowercase letter
-#engine: *
-
-def filter_yard_input(yard_input:str) -> list[list[int]]:
+def filter_yard_input(yard_input: str) -> list:
     yard_input = yard_input.replace(" ", "")
-    yard_filtered: list[list[int]] = []
+    yard_filtered = []
     for i in range(0, len(yard_input), 2):
-        yard_filtered.append([
-            int(yard_input[i]),
-            int(yard_input[i + 1])
-        ])  # convert to [[1,2],[1,3]] rail pairs
+        yard_filtered.append([int(yard_input[i]), int(yard_input[i + 1])])
     return yard_filtered
 
+def possible_actions_to_str(yard: Yard, state: State) -> str:
+    pa_ty = possible_actions(yard, state)
+    return "\t".join(str(act) for act in pa_ty)
+
+def run_problem1(yards: list):
+    print("=== PROBLEM 1 [10 pts] - possible_actions ===")
+    for idx, ty in enumerate(yards, start=1):
+        print(f"Yard {idx}")
+        print(f"INIT-STATE-{idx} {possible_actions_to_str(ty, ty.initial_state)}")
+        print(f"GOAL-STATE-{idx} {possible_actions_to_str(ty, ty.goal_state)}\n")
+
+def run_problem6(yards: list, iddfs_max_depth: int = 15):
+    print("=== Timing & Speedup (IDDFS vs A*) ===")
+    for idx, ty in enumerate(yards, start=1):
+        # IDDFS
+        t0 = time.perf_counter()
+        plan_iddfs, stats_iddfs = iterative_deepening_dfs(
+            ty, ty.initial_state, ty.goal_state, max_depth=iddfs_max_depth, stats={"expanded": 0}
+        )
+        t1 = time.perf_counter()
+        t_iddfs = t1 - t0
+        n_iddfs = len(plan_iddfs)
+        e_iddfs = stats_iddfs["expanded"]
+
+        # A*
+        t2 = time.perf_counter()
+        plan_astar, stats_astar = astar(ty, stats={"expanded": 0})
+        t3 = time.perf_counter()
+        t_astar = t3 - t2
+        n_astar = len(plan_astar)
+        e_astar = stats_astar["expanded"]
+
+        time_speedup = (t_iddfs / t_astar) if t_astar > 0 and plan_astar else float('nan')
+        exp_speedup  = (e_iddfs / e_astar)  if e_astar  > 0 and plan_astar else float('nan')
+
+        print(f"Yard {idx}: "
+              f"IDDFS {t_iddfs:.4f}s, exp={e_iddfs}, actions={n_iddfs} | "
+              f"A* {t_astar:.4f}s, exp={e_astar}, actions={n_astar} | "
+              f"Speedup time {time_speedup:.2f}x, nodes {exp_speedup:.2f}x")
+
 def main():
-    #Project 1 examples
-    yard_inputs_input:list[str] = [
+    # Ask user if they want manual inputs
+    resp = input("Enter manual inputs? (y/n): ").strip().lower()
+    if resp == "y":
+        # Manual single-yard mode
+        yard_str = input("Define yard connectivity (e.g., '1 2 1 5 2 3 2 4'): ").strip()
+        init_str = input("Define init state (e.g., '* d b ae c'): ").strip()
+        goal_str = input("Define goal state (e.g., '*abcde empty empty empty empty'): ").strip()
+
+        ty = Yard(filter_yard_input(yard_str), State(init_str), State(goal_str))
+
+        # Problem 1 (for this single yard)
+        print("=== PROBLEM 1 [10 pts] - possible_actions ===")
+        print("Yard 1")
+        print(f"INIT-STATE-1 {possible_actions_to_str(ty, ty.initial_state)}")
+        print(f"GOAL-STATE-1 {possible_actions_to_str(ty, ty.goal_state)}\n")
+
+        # Problem 6 (timings, nodes, speedup) for this single yard
+        run_problem6([ty], iddfs_max_depth=15)
+        return
+
+    # Batch mode: run the five example yards
+    yard_inputs_input = [
         "1 2 1 3 3 5 4 5 2 6 5 6",
         "1 2 1 5 2 3 2 4",
         "1 2 1 3",
         "1 2 1 3 1 4",
-        "1 2 1 3 1 4"
+        "1 2 1 3 1 4",
     ]
-
-    init_states_input:list[str] = [
+    init_states_input = [
         "* e empty bca empty d",
         "* d b ae c",
         "* a b",
         "* a bc d",
-        "* a cb d"
+        "* a cb d",
     ]
-
-    goal_states_input:list[str] = [
+    goal_states_input = [
         "*abcde empty empty empty empty empty",
         "*abcde empty empty empty empty",
         "*ab empty empty",
         "*abcd empty empty empty",
-        "*abcd empty empty empty"
+        "*abcd empty empty empty",
     ]
 
-    train_yard_1: Yard = Yard(
-        filter_yard_input(yard_inputs_input[0]),
-        State(init_states_input[0]),
-        State(goal_states_input[0])
-    )
-    train_yard_2: Yard = Yard(
-        filter_yard_input(yard_inputs_input[1]),
-        State(init_states_input[1]),
-        State(goal_states_input[1])
-    )
-    train_yard_3: Yard = Yard(
-        filter_yard_input(yard_inputs_input[2]),
-        State(init_states_input[2]),
-        State(goal_states_input[2])
-    )
-    train_yard_4: Yard = Yard(
-        filter_yard_input(yard_inputs_input[3]),
-        State(init_states_input[3]),
-        State(goal_states_input[3])
-    )
-    train_yard_5: Yard = Yard(
-        filter_yard_input(yard_inputs_input[4]),
-        State(init_states_input[4]),
-        State(goal_states_input[4])
-    )
-
-    train_yards: list[Yard] = [
-        train_yard_1,
-        train_yard_2,
-        train_yard_3,
-        train_yard_4,
-        train_yard_5,
+    train_yards = [
+        Yard(filter_yard_input(yard_inputs_input[0]), State(init_states_input[0]), State(goal_states_input[0])),
+        Yard(filter_yard_input(yard_inputs_input[1]), State(init_states_input[1]), State(goal_states_input[1])),
+        Yard(filter_yard_input(yard_inputs_input[2]), State(init_states_input[2]), State(goal_states_input[2])),
+        Yard(filter_yard_input(yard_inputs_input[3]), State(init_states_input[3]), State(goal_states_input[3])),
+        Yard(filter_yard_input(yard_inputs_input[4]), State(init_states_input[4]), State(goal_states_input[4])),
     ]
 
-    print("===See README for example inputs===")
-    """Console Input"""
-    """yard_input:str = input("Define yard:")
-    yard_filtered = filter_yard_input(yard_input)
-
-    init_state_input:str = input("Define init-state:")
-    init_state:State = State(init_state_input)
-
-    output_state_input:str = input("Define output:")
-    output_state:State = State(output_state_input)
-
-    train_yard:Yard = Yard(
-        yard_filtered,
-        init_state,
-        output_state
-    )"""
-
-    """Output"""
-    #PROBLEM 1 [10 pts] - possible_actions
-    """
-    Run your function 
-        *on at least three different yards 
-        *two different states for each yard 
-        *including the two large yards and initial states described pictorially in this
-        handout
-    """
-    """
-    index:int = 0
-    for ty in train_yards:
-        index += 1
-        actions_init: list[Action] = possible_actions(ty, ty.initial_state)
-        actions_goal: list[Action] = possible_actions(ty, ty.goal_state)
-        print(f"===Possible Actions: train_yard_{index} init")
-        for action in actions_init:
-            print("\t"+str(action))
-        print(f"===Possible Actions: train_yard_{index} goal")
-        for action in actions_goal:
-            print("\t"+str(action))
-            """
-
-    #PROBLEM 2 [10 pts] - expected_state
-
-    #PROBLEM 3 [10 pts] - expected_states
-
-    #Problem 4 [30 pts] - iterative_deepening_dfs
-    """for idx, ty in enumerate(train_yards, start=1):
-        if idx == 1:  # skip yard 1
-            continue
-
-        goal_actions: list[Action] = iterative_deepening_dfs(
-            ty, ty.initial_state, ty.goal_state, 20
-        )
-
-        sim_state:State = ty.initial_state
-        for action in goal_actions:
-            sim_state = result(action, sim_state)
-
-        temp_yard:Yard = Yard(ty.rail_connectivity, ty.initial_state, ty.goal_state)
-        temp_yard.current_state = sim_state
-
-        draw_yard(temp_yard)"""
-
-    #Problem 6 [30 pts] -
-    for idx, ty in enumerate(train_yards, start=1):
-
-
-        plan = astar(ty)  # <- A* returns a list of Action
-        if not plan:
-            print(f"Yard {idx}: no solution found by A*")
-            continue
-
-        # simulate final state without mutating the yard
-        sim_state = ty.initial_state
-        for act in plan:
-            sim_state = result(act, sim_state)
-
-        # temporary yard just for drawing
-        temp_yard = Yard(ty.rail_connectivity, ty.initial_state, ty.goal_state)
-        temp_yard.current_state = sim_state
-
-        draw_yard(temp_yard)
-
+    # Problem 1 and 6 on the batch
+    run_problem1(train_yards)
+    run_problem6(train_yards, iddfs_max_depth=15)
 
 if __name__ == '__main__':
     main()
