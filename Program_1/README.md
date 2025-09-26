@@ -17,7 +17,9 @@ YARD-1:
 *abcde empty empty empty empty empty
 
 YARD-2:
-???
+1 2 1 5 2 3 2 4
+* d b ae c
+*abcde empty empty empty empty
 
 YARD-3:
 1 2 1 3

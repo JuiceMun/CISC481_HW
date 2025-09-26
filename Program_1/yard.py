@@ -1,4 +1,3 @@
-import math
 import matplotlib.pyplot as plt
 import networkx as nx
 from state import State
@@ -46,11 +45,11 @@ class Yard:
         if not (self._engine_on(x) or self._engine_on(y)):
             print(f"Illegal move - engine not on rails {x} or {y}")
             return False
-        # 4. source (y) must not be empty
+        # 4 - source (y) must not be empty
         if not self.current_state.state[y - 1]:
             print(f"Illegal move - track {y} is empty")
             return False
-        # 5. take leftmost from y, append to x
+        # 5 - take leftmost from y, append to x
         car = self.current_state.state[y - 1].pop(0)
         self.current_state.state[x - 1].append(car)
         return True
@@ -79,53 +78,95 @@ class Yard:
         return True
 
 
-def possible_actions(yard: Yard, state: State) -> list[Action]:
-    """
-    Produce all legal moves (LEFT/RIGHT) from given state `state` under `yard`.
-    Returns a list of Action objects.
-    """
-    actions: list[Action] = []
-
+def possible_actions(yard: Yard, state: State) -> list:
+    actions = []
     def engine_on(t: int) -> bool:
         return "*" in state.state[t - 1]
 
-    for a, b in yard.rail_connectivity:
-        # LEFT y x
-        if (engine_on(a) or engine_on(b)) and len(state.state[b - 1]) > 0:
+    for a, b in yard.rail_connectivity:   # assume a < b
+        if not (engine_on(a) or engine_on(b)):
+            continue
+
+        # LEFT b->a (source = b)
+        if state.state[b - 1] and state.state[b - 1][0] != "*":
             actions.append(Action("LEFT", b, a))
 
-        # RIGHT x y
-        if (engine_on(a) or engine_on(b)) and len(state.state[a - 1]) > 0:
+        # RIGHT a->b (source = a)
+        if state.state[a - 1] and state.state[a - 1][-1] != "*":
             actions.append(Action("RIGHT", a, b))
-
     return actions
 
-def expected_result(action: Action, state: State) -> State:
-    """Returns an expected state based on the input action and state"""
 
-    #1 - deep copy state
-    new_state = State("")
-    new_state.state = state.state.copy()
+def result(action: Action, state: State) -> State:
+    a, b = action.a - 1, action.b - 1
 
-    #2 - unpack action
-    direction = action.direction
-    a = action.a
-    b = action.b
+    # copy outer list
+    tracks = list(state.state)
+    # copy only the two tracks we will modify
+    ta = list(tracks[a])
+    tb = list(tracks[b])
 
-    # 3 - do the move by cases
-    if direction == "LEFT":
-        # see left(y,x)
-        car = new_state.state[a - 1].pop(0)
-        new_state.state[b - 1].append(car)
-    elif direction == "RIGHT":
-        # see right(x,y)
-        car = new_state.state[a - 1].pop(-1)
-        new_state.state[b - 1].insert(0, car)
+    if action.direction == "LEFT":
+        car = ta.pop(0)       # leftmost of source (y = a)
+        tb.append(car)        # right end of dest   (x = b)
+    elif action.direction == "RIGHT":
+        car = ta.pop(-1)      # rightmost of source (x = a)
+        tb.insert(0, car)     # left/front of dest  (y = b)
     else:
-        print("Illegal move - invalid direction")
-        return State("-1")
+        raise ValueError("Invalid direction")
 
-    return new_state
+    tracks[a] = ta
+    tracks[b] = tb
+
+    s2 = State("")
+    s2.state = tracks
+    return s2
+
+
+def expected_states(state:State, yard:Yard) -> list:
+    """returns a list of possible states"""
+    successors:list[State] = []
+    actions:list[Action] = possible_actions(yard, state)
+
+    for action in actions:
+        new_state = result(action, state)
+        successors.append(new_state)
+
+    return successors
+
+def dls(yard: Yard, current: State, goal: State, depth: int, path: list, last: Action=None):
+    if current.state == goal.state:
+        return True, path
+    if depth == 0:
+        return False, []
+
+    for act in possible_actions(yard, current):
+        # skip immediate inverse (undo)
+        if last and (
+            (last.direction == "LEFT"  and act.direction == "RIGHT" and last.a == act.b and last.b == act.a) or
+            (last.direction == "RIGHT" and act.direction == "LEFT"  and last.a == act.b and last.b == act.a)
+        ):
+            continue
+
+        ns = result(act, current)
+        found, fpath = dls(yard, ns, goal, depth - 1, path + [act], act)
+        if found:
+            return True, fpath
+    return False, []
+
+
+def iterative_deepening_dfs(yard: Yard, start_state: State, goal_state: State, max_depth: int) -> list[Action]:
+    """
+    Iterative Deepening DFS. Returns the action list if found, else [].
+    """
+    for limit in range(max_depth + 1):
+        found, path = dls(yard, start_state, goal_state, limit, [])
+        if found:
+            return path
+    return []
+
+
+
 
 def draw_yard(yard: Yard):
     """Visual representation of the yard using CURRENT state."""
